@@ -11,8 +11,8 @@ export class Container {
         this.injectsMap.set(token, target);
     }
 
-    resolve<T>(target: Ctx<T>, to: string[] = []): T {
-        if (to.includes(target.name)) {
+    resolve<T>(target: Ctx<T>, to: Ctx[] = []): T {
+        if (to.includes(target)) {
             throw new Error('Circular dependency')
         }
 
@@ -45,7 +45,7 @@ export class Container {
                 }
             }
 
-            return this.resolve(processedParameter, [...to, target.name])
+            return this.resolve(processedParameter, [...to, target])
         })
 
         const instance = new target(...args);
