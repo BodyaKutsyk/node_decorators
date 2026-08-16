@@ -1,3 +1,4 @@
+import 'reflect-metadata'
 export type Token = string | number | symbol
 
 type ParamTokenMetadata = Map<number, Token>

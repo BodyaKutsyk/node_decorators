@@ -1,5 +1,5 @@
-import { INJECTABLE, InjectableMetadata, Scope } from "./injectable";
-import { PARAM_METADATA_KEY, Token } from "./inject";
+import { INJECTABLE, InjectableMetadata, Scope } from "./decorators/injectable";
+import { PARAM_METADATA_KEY, Token } from "./decorators/inject";
 
 type Ctx<T = unknown> =  new (...args: any[]) => T
 
