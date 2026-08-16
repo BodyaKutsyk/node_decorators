@@ -1,11 +1,7 @@
 import { INJECTABLE, InjectableMetadata, Scope } from "./injectable";
-import {Token} from "./inject";
+import { PARAM_METADATA_KEY, Token } from "./inject";
 
 type Ctx<T = unknown> =  new (...args: any[]) => T
-
-function isToken(parameter: Ctx | Token) {
-    return typeof parameter === 'string' || typeof parameter === 'symbol';
-}
 
 export class Container {
     private injectsMap = new Map<Token, Ctx>()
@@ -26,22 +22,37 @@ export class Container {
             throw new Error(`${target.name} is not Injectable()`)
         }
 
-        if (metadata.scope === Scope.singleton && this.instances.has(target)) {
+        const isSingleton = metadata.scope === Scope.singleton;
+        if (isSingleton && this.instances.has(target)) {
             return this.instances.get(target) as T;
         }
 
-        const parameters: (Ctx | Token)[]  = (Reflect.getMetadata('design:paramtypes', target)) || [];
-        const processedParameters: Ctx[] = parameters.map(parameter => {
-            if (isToken(parameter) && this.injectsMap.has(parameter)) {
-                return this.injectsMap.get(parameter) as Ctx;
+        const parameters: Ctx[]  = (Reflect.getMetadata('design:paramtypes', target)) || [];
+        const injectMetadata: Map<number, Token> = Reflect.getMetadata(PARAM_METADATA_KEY, target) || new Map();
+
+        const args = parameters.map((parameter, i) => {
+            const hasToken = injectMetadata.has(i);
+            let processedParameter = parameter;
+
+            if (hasToken) {
+                const token = injectMetadata.get(i) as Token;
+                const inject = this.injectsMap.get(token);
+
+                if (inject) {
+                    processedParameter = inject;
+                } else {
+                    throw new Error(`No binding found for token: ${token.toString()}`)
+                }
             }
 
-            return parameter as Ctx;
+            return this.resolve(processedParameter, [...to, target.name])
         })
 
-        const args = processedParameters.map(parameter => this.resolve(parameter, [...to, target.name]))
         const instance = new target(...args);
-        this.instances.set(target, instance);
+
+        if (isSingleton) {
+            this.instances.set(target, instance);
+        }
 
         return instance;
     }
