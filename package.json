@@ -1,10 +1,12 @@
 {
   "scripts": {
-    "test": "node -r ts-node/register --test **/*.test.ts"
+    "test": "node -r ts-node/register -r tsconfig-paths/register --test **/*.test.ts",
+    "start": "ts-node src/index.ts"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
     "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^6.0.3"
   },
   "dependencies": {
