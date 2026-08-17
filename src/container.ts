@@ -13,7 +13,8 @@ export class Container {
 
     resolve<T>(target: Ctx<T>, to: Ctx[] = []): T {
         if (to.includes(target)) {
-            throw new Error('Circular dependency')
+            const depsPath = [...to, target].map(dep => dep.name).join(' -> ');
+            throw new Error(`Circular dependency: ${depsPath}`)
         }
 
         const metadata = Reflect.getMetadata(INJECTABLE, target) as InjectableMetadata | undefined;

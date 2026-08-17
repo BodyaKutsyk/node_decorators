@@ -22,7 +22,7 @@ describe('DI Container', () => {
         @Injectable() class B { constructor(a: A) {} }
         Reflect.defineMetadata('design:paramtypes', [B], A);
 
-        assert.throws(() => container.resolve(A), { message: 'Circular dependency' })
+        assert.throws(() => container.resolve(A), { message: 'Circular dependency: A -> B -> A' })
     })
 
     it ('doesnt throw circular dependency error on the same class name', () => {
