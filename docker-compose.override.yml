@@ -1,0 +1,16 @@
+services:
+  api:
+    command: npm run dev
+    image: my_node_dev
+    build:
+      target: builder
+    develop:
+      watch:
+        - action: sync
+          path: ./src
+          target: /app/src
+        - action: rebuild
+          path: package.json
+        - action: sync+restart
+          path: ./tsconfig.json
+          target: /app/tsconfig.json

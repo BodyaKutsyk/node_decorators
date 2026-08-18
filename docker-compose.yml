@@ -1,0 +1,4 @@
+services:
+  api:
+    image: my_node_prod
+    build: .

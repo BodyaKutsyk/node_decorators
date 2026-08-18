@@ -1,7 +1,7 @@
 # Саморобний (майже) Dependency Injection Container + Inject/Injectable decorators
 
 ## Як запустити
-- Для запуску потрібно виконати команду `npm run start`.
+- Для запуску потрібно виконати команду `npm run start`. Для докера `npm run docker:start:dev` або `npm run docker:start:prod`.
 - Для тестування потрібно виконати команду `npm run test`
 
 Проєкт працює на двигуні виконання `ts-node`, тестується через нативну бібліотеку `node:test`.
