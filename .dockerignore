@@ -1,0 +1,9 @@
+node_modules
+Dockerfile
+test
+dist
+.idea
+.gitignore
+.env*
+.git
+*.md
