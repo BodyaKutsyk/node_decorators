@@ -8,14 +8,14 @@ export enum Scope {
 type ScopeVariants = keyof typeof Scope;
 
 interface InjectableProps {
-    scope: ScopeVariants
+    scope?: ScopeVariants
 }
 
 export interface InjectableMetadata {
     scope: ScopeVariants
 }
 
-export function Injectable({ scope }: InjectableProps = { scope: Scope.singleton }): ClassDecorator  {
+export function Injectable({ scope = Scope.singleton }: InjectableProps = {}): ClassDecorator  {
     return (target) => {
         Reflect.defineMetadata(INJECTABLE, { scope }, target)
     }

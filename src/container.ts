@@ -17,7 +17,7 @@ export class Container {
             throw new Error(`Circular dependency: ${depsPath}`)
         }
 
-        const metadata = Reflect.getMetadata(INJECTABLE, target) as InjectableMetadata | undefined;
+        const metadata = Reflect.getOwnMetadata(INJECTABLE, target) as InjectableMetadata | undefined;
 
         if (!metadata) {
             throw new Error(`${target.name} is not Injectable()`)
