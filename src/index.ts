@@ -1,8 +1,8 @@
 import 'reflect-metadata';
-import { Inject } from "./decorators/inject";
-import { Injectable, Scope } from "./decorators/injectable";
-import { Container } from "./container";
-import { TYPES } from "./tokens";
+import { Inject } from "src/decorators/inject";
+import { Injectable, Scope } from "src/decorators/injectable";
+import { Container } from "src/container";
+import { TYPES } from "src/tokens";
 
 @Injectable()
 class Config {}
@@ -23,7 +23,7 @@ interface Logger {
 
 @Injectable({ scope: Scope.transient })
 class UserService {
-    constructor(@Inject(TYPES.logger) private readonly logger: Logger, private  readonly config: Config) {}
+    constructor(@Inject(TYPES.logger) private readonly logger: Logger, private readonly config: Config) {}
 
     getUser(id: string) {
         this.logger.log(id);
