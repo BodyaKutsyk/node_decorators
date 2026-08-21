@@ -1,31 +1,11 @@
 import {CONTROLLER_METADATA_KEY} from "src/decorators/controller";
 import {METHOD_METADATA_KEY, METHOD_PATH_METADATA_KEY} from "src/decorators/methods";
 import {Method, METHODS} from "src/types";
-import {Container, Ctx} from "src/container";
-import {TYPES} from "src/users/types";
-import {UsersService} from "src/users/service";
+import {Ctx} from "src/container";
 import {UsersController} from "src/users/controller";
-import { PROPERTY_METADATA_TYPE } from "src/decorators/params";
-
-
-function createRouteRegexp(pattern: string) {
-    const paramNames: string[] = [];
-
-    const regexpString = pattern.replace(
-        /:([^/]+)/g,
-        (_, paramName: string) => {
-            paramNames.push(paramName);
-            return "([^/]+)";
-        },
-    );
-
-    return {
-        regexp: new RegExp(`^${regexpString}$`),
-        paramNames,
-    };
-}
-
-const modules: any[] = [UsersController];
+import {PROPERTY_METADATA_TYPE} from "src/decorators/params";
+import {createRouteRegexp} from "src/utils/create-route-regexp";
+import {modules} from "src/modules";
 
 interface RouterProps {
     path: string;
@@ -59,26 +39,26 @@ export class Router {
     }
 
     private initialize() {
-        modules.map(module => {
-            const prefix = Reflect.getOwnMetadata(CONTROLLER_METADATA_KEY, module);
-            const controllerMethods = Object.getOwnPropertyNames(module.prototype).slice(1)
+        for (const controller of modules.keys()) {
+            const prefix = Reflect.getOwnMetadata(CONTROLLER_METADATA_KEY, controller);
+            const controllerMethods = Object.getOwnPropertyNames(controller.prototype).slice(1)
             controllerMethods.map(controllerMethod => {
-                const handler = module.prototype[controllerMethod];
+                const handler = controller.prototype[controllerMethod];
                 const method: Method = Reflect.getOwnMetadata(METHOD_METADATA_KEY, handler);
                 const path = Reflect.getOwnMetadata(METHOD_PATH_METADATA_KEY, handler) || '';
-                const pattern = `/${prefix}/${path}`;
+                const pattern = `/${prefix}${path ? `/${path}` : ''}`;
                 const { regexp, paramNames } = createRouteRegexp(pattern);
                 const route: Route = {
                     handler,
                     regexp,
                     paramNames,
-                    controller: module,
+                    controller,
                 }
 
 
                 this.routes[method].push(route)
             })
-        })
+        }
     }
 
     private parseQueries(queries: URLSearchParams) {
@@ -105,18 +85,19 @@ export class Router {
     }
 
     async prepareHandler({ body, paramsMatch, route }: { body: string, paramsMatch: RegExpExecArray, route: Route }) {
-        const container = new Container();
-        container.bind(TYPES.userService, UsersService)
-        container.bind(PROPERTY_METADATA_TYPE.body, body)
-        const params: Record<string, string> = {};
-        route.paramNames.map((param, i) => {
-            params[param] = paramsMatch[i + 1]
-        })
+        const container = modules.get(route.controller);
+        if (container) {
+            const params: Record<string, string> = {};
 
-        container.bind(PROPERTY_METADATA_TYPE.param, params);
-        container.bind(PROPERTY_METADATA_TYPE.query, this.queries);
+            route.paramNames.map((param, i) => {
+                params[param] = paramsMatch[i + 1]
+            })
+            container.bind(PROPERTY_METADATA_TYPE.body, body);
+            container.bind(PROPERTY_METADATA_TYPE.param, params);
+            container.bind(PROPERTY_METADATA_TYPE.query, this.queries);
 
-        const controller = container.resolve(UsersController)
-        await container.invoke(controller, route.handler.name)
+            const controller = container.resolve(UsersController)
+            return await container.invoke(controller, route.handler.name);
+        }
     }
 }

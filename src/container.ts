@@ -74,7 +74,7 @@ export class Container {
     }
 
     private async processParam({ instance, methodName, args }: ProcessParamProps) {
-        const propertyMetadataValues: PropertyMetadataValues = Reflect.getOwnMetadata(PARAM_METADATA_KEY, Object.getPrototypeOf(instance), methodName);
+        const propertyMetadataValues: PropertyMetadataValues = Reflect.getOwnMetadata(PARAM_METADATA_KEY, Object.getPrototypeOf(instance), methodName) || new Map();
 
         for (const [key, propertyMetadataValue] of propertyMetadataValues) {
             const { data, pipe, type } = propertyMetadataValue;

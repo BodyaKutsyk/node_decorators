@@ -4,7 +4,7 @@ import { Router } from "src/router";
 import { Method } from "src/types";
 import { isJSON } from "src/utils/isJSON";
 
-createServer((req, res) => {
+const server= createServer((req, res) => {
     const path = new URL(req.url || '', `http://${req.headers.host}`);
     const router = new Router({ path: path.pathname, method: req.method as Method, queries: path.searchParams })
     let body = '';
@@ -24,12 +24,18 @@ createServer((req, res) => {
             const { route, paramsMatch } = result;
 
             try {
-                await router.prepareHandler({ body, route, paramsMatch })
+                const result = await router.prepareHandler({ body, route, paramsMatch })
+
+                if (result) {
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify(result));
+                } else {
+                    res.statusCode = 204;
+                    res.end();
+                }
             } catch (e) {
-                console.log(e)
                 res.statusCode = 400
-                res.statusMessage = 'Validation error';
-                res.end()
+                res.statusMessage = 'Bad Request';
             }
             res.end()
         } else {
@@ -40,4 +46,6 @@ createServer((req, res) => {
 
         body = ''
     })
-}).listen(Number(process.env.API_INTERNAL_PORT))
+});
+
+export default server;
