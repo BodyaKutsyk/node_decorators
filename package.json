@@ -1,9 +1,7 @@
 {
   "scripts": {
     "build": "tsc",
-    "test": "node -r ts-node/register -r tsconfig-paths/register --test **/*.test.ts",
-    "start": "ts-node src/index.ts",
-    "dev": "nodemon --watch 'src/**/*.ts' --exec ts-node -r tsconfig-paths/register  src/index.ts",
+    "dev": "node --env-file=.env --watch -r ts-node/register -r tsconfig-paths/register src/dispatcher.ts",
     "docker:build": "docker compose build",
     "docker:build:prod": "docker compose -f docker-compose.yml build",
     "docker:start:dev": "npm run docker:build && docker compose up --watch",
@@ -13,12 +11,13 @@
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
-    "nodemon": "^3.1.14",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^6.0.3"
   },
   "dependencies": {
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
     "reflect-metadata": "^0.2.2"
   }
 }

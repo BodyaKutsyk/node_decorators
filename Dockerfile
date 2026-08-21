@@ -15,4 +15,4 @@ USER node
 COPY --chown=node:node --from=base ./app/package*.json ./
 RUN npm ci --omit=dev
 COPY --chown=node:node --from=builder ./app/dist ./dist
-CMD ["node", "dist/src/index.js"]
+CMD ["node", "dist/src/dispatcher.js"]

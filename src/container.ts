@@ -1,13 +1,16 @@
 import { INJECTABLE, InjectableMetadata, Scope } from "./decorators/injectable";
 import { PARAM_METADATA_KEY, Token } from "./decorators/inject";
+import {BODY_METADATA_KEY, PARAMS_METADATA_KEY} from "src/decorators/params";
+import {Pipe} from "src/types";
+import {ValidationPipe} from "src/pipes/validation.pipe";
 
-type Ctx<T = unknown> =  new (...args: any[]) => T
+export type Ctx<T = unknown> =  new (...args: any[]) => T
 
 export class Container {
-    private injectsMap = new Map<Token, Ctx>()
+    private injectsMap = new Map<Token, unknown>()
     private instances = new Map<Ctx, unknown>()
 
-    bind(token: Token, target: Ctx) {
+    bind(token: Token, target: unknown) {
         this.injectsMap.set(token, target);
     }
 
@@ -40,7 +43,7 @@ export class Container {
                 const inject = this.injectsMap.get(token);
 
                 if (inject) {
-                    processedParameter = inject;
+                    processedParameter = inject as Ctx;
                 } else {
                     throw new Error(`No binding found for token: ${token.toString()}`)
                 }
@@ -57,4 +60,59 @@ export class Container {
 
         return instance;
     }
+    async invoke<T>(instance: any, methodName: string): Promise<T> {
+        const args: unknown[] = [];
+
+        this.processParam(instance, args, methodName)
+        await this.processBody(instance, args, methodName);
+
+        return instance[methodName](...args)
+    }
+
+    private async processBody(instance: Ctx, args: unknown[], methodName: string) {
+        const bodyMetadata: { pipe?: Pipe, paramIndex: number } = Reflect.getOwnMetadata(BODY_METADATA_KEY , Object.getPrototypeOf(instance), methodName)
+        let body = this.injectsMap.get(BODY_METADATA_KEY);
+
+        if (bodyMetadata) {
+            if (!body) {
+                throw new Error('No binding for @Body()');
+            }
+
+            if (bodyMetadata.pipe) {
+                body = await this.validateBody(instance, bodyMetadata.pipe, methodName);
+            }
+
+            args[bodyMetadata.paramIndex] = body;
+        }
+    }
+    private processParam(instance: unknown, args: unknown[], methodName: string) {
+        const paramsMetadata: Map<number, string> = Reflect.getOwnMetadata(PARAMS_METADATA_KEY, Object.getPrototypeOf(instance), methodName);
+        const params = this.injectsMap.get(PARAMS_METADATA_KEY) as Record<string, string>;
+
+        for (const [key, value] of paramsMetadata) {
+            if (!params[value]) {
+                throw new Error(`No binding for the parameter: ${value}`)
+            }
+
+            args[key] = params[value]
+        }
+    }
+    private async validateBody(instance: Ctx, pipe: Pipe, methodName: string) {
+        const bodyMetadata: { pipe?: Pipe, paramIndex: number } = Reflect.getOwnMetadata(BODY_METADATA_KEY , Object.getPrototypeOf(instance), methodName)
+        const paramTypes = Reflect.getOwnMetadata('design:paramtypes', Object.getPrototypeOf(instance), methodName);
+        const body = this.injectsMap.get(BODY_METADATA_KEY);
+        const bodyType = paramTypes[bodyMetadata.paramIndex];
+        if (pipe instanceof ValidationPipe) {
+            const { errors, success, data } = await pipe.validate(body, bodyType)
+
+            if (success) {
+                return data;
+            }
+
+            if (errors?.length) {
+                throw errors;
+            }
+        }
+    }
 }
+
