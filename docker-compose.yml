@@ -1,4 +1,8 @@
 services:
   api:
+    ports:
+      - "${API_EXTERNAL_PORT}:${API_INTERNAL_PORT}"
     image: my_node_prod
+    env_file:
+      - .env
     build: .
