@@ -6,7 +6,7 @@ import { isJSON } from "src/utils/isJSON";
 
 createServer((req, res) => {
     const path = new URL(req.url || '', `http://${req.headers.host}`);
-    const router = new Router({ path: path.pathname, method: req.method as Method })
+    const router = new Router({ path: path.pathname, method: req.method as Method, queries: path.searchParams })
     let body = '';
     req.on('data', (chunk) => {
         body += chunk;
@@ -25,7 +25,8 @@ createServer((req, res) => {
 
             try {
                 await router.prepareHandler({ body, route, paramsMatch })
-            } catch {
+            } catch (e) {
+                console.log(e)
                 res.statusCode = 400
                 res.statusMessage = 'Validation error';
                 res.end()

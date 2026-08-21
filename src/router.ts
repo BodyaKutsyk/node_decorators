@@ -5,7 +5,7 @@ import {Container, Ctx} from "src/container";
 import {TYPES} from "src/users/types";
 import {UsersService} from "src/users/service";
 import {UsersController} from "src/users/controller";
-import {BODY_METADATA_KEY, PARAMS_METADATA_KEY} from "src/decorators/params";
+import { PROPERTY_METADATA_TYPE } from "src/decorators/params";
 
 
 function createRouteRegexp(pattern: string) {
@@ -30,8 +30,7 @@ const modules: any[] = [UsersController];
 interface RouterProps {
     path: string;
     method: Method;
-    param?: string;
-    queries?: string
+    queries: URLSearchParams
 }
 
 interface Route {
@@ -42,8 +41,9 @@ interface Route {
 }
 
 export class Router {
-    private path: string
+    private path: string;
     private method: Method;
+    private queries: Record<string, unknown>;
 
     private routes: Record<Method, Route[]> = {
         [METHODS.get]: [],
@@ -51,9 +51,10 @@ export class Router {
     }
 
 
-    constructor({path, method}: RouterProps) {
+    constructor({path, method, queries}: RouterProps) {
         this.method = method;
-        this.path = path
+        this.path = path;
+        this.queries = this.parseQueries(queries);
         this.initialize()
     }
 
@@ -80,6 +81,19 @@ export class Router {
         })
     }
 
+    private parseQueries(queries: URLSearchParams) {
+        const obj: Record<string, unknown> = {};
+        queries.forEach((value, key) => {
+            if (obj[key]) {
+                obj[key] = Array.isArray(obj[key]) ? [...obj[key], value] : [obj[key], value];
+            } else {
+                obj[key] = value;
+            }
+        });
+
+        return obj;
+    }
+
     findRoute() {
         const routes = this.routes[this.method];
         for (const route of routes) {
@@ -93,15 +107,14 @@ export class Router {
     async prepareHandler({ body, paramsMatch, route }: { body: string, paramsMatch: RegExpExecArray, route: Route }) {
         const container = new Container();
         container.bind(TYPES.userService, UsersService)
-        container.bind(BODY_METADATA_KEY, body)
+        container.bind(PROPERTY_METADATA_TYPE.body, body)
         const params: Record<string, string> = {};
         route.paramNames.map((param, i) => {
             params[param] = paramsMatch[i + 1]
         })
 
-        if (route.paramNames.length) {
-            container.bind(PARAMS_METADATA_KEY, params);
-        }
+        container.bind(PROPERTY_METADATA_TYPE.param, params);
+        container.bind(PROPERTY_METADATA_TYPE.query, this.queries);
 
         const controller = container.resolve(UsersController)
         await container.invoke(controller, route.handler.name)

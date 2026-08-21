@@ -1,10 +1,15 @@
 import { INJECTABLE, InjectableMetadata, Scope } from "./decorators/injectable";
-import { PARAM_METADATA_KEY, Token } from "./decorators/inject";
-import {BODY_METADATA_KEY, PARAMS_METADATA_KEY} from "src/decorators/params";
-import {Pipe} from "src/types";
+import { INJECT_METADATA_KEY, Token } from "./decorators/inject";
+import {PARAM_METADATA_KEY, PropertyMetadataValue, PropertyMetadataValues} from "src/decorators/params";
 import {ValidationPipe} from "src/pipes/validation.pipe";
 
 export type Ctx<T = unknown> =  new (...args: any[]) => T
+
+interface ProcessParamProps {
+    instance: Ctx;
+    args: unknown[];
+    methodName: string;
+}
 
 export class Container {
     private injectsMap = new Map<Token, unknown>()
@@ -32,7 +37,7 @@ export class Container {
         }
 
         const parameters: Ctx[]  = (Reflect.getMetadata('design:paramtypes', target)) || [];
-        const injectMetadata: Map<number, Token> = Reflect.getMetadata(PARAM_METADATA_KEY, target) || new Map();
+        const injectMetadata: Map<number, Token> = Reflect.getMetadata(INJECT_METADATA_KEY, target) || new Map();
 
         const args = parameters.map((parameter, i) => {
             const hasToken = injectMetadata.has(i);
@@ -63,47 +68,41 @@ export class Container {
     async invoke<T>(instance: any, methodName: string): Promise<T> {
         const args: unknown[] = [];
 
-        this.processParam(instance, args, methodName)
-        await this.processBody(instance, args, methodName);
+        await this.processParam({instance, args, methodName})
 
         return instance[methodName](...args)
     }
 
-    private async processBody(instance: Ctx, args: unknown[], methodName: string) {
-        const bodyMetadata: { pipe?: Pipe, paramIndex: number } = Reflect.getOwnMetadata(BODY_METADATA_KEY , Object.getPrototypeOf(instance), methodName)
-        let body = this.injectsMap.get(BODY_METADATA_KEY);
+    private async processParam({ instance, methodName, args }: ProcessParamProps) {
+        const propertyMetadataValues: PropertyMetadataValues = Reflect.getOwnMetadata(PARAM_METADATA_KEY, Object.getPrototypeOf(instance), methodName);
 
-        if (bodyMetadata) {
-            if (!body) {
-                throw new Error('No binding for @Body()');
+        for (const [key, propertyMetadataValue] of propertyMetadataValues) {
+            const { data, pipe, type } = propertyMetadataValue;
+            let result: any = this.injectsMap.get(type)  || {};
+            if (data) {
+                if (!result[data]) {
+                    throw new Error(`No binding for the: ${data}`)
+                }
+
+                result = result[data];
             }
 
-            if (bodyMetadata.pipe) {
-                body = await this.validateBody(instance, bodyMetadata.pipe, methodName);
+            if (pipe) {
+                result = await this.validateParam(instance, methodName, propertyMetadataValue) as Record<string, unknown>;
             }
 
-            args[bodyMetadata.paramIndex] = body;
+
+            args[key] = result;
         }
     }
-    private processParam(instance: unknown, args: unknown[], methodName: string) {
-        const paramsMetadata: Map<number, string> = Reflect.getOwnMetadata(PARAMS_METADATA_KEY, Object.getPrototypeOf(instance), methodName);
-        const params = this.injectsMap.get(PARAMS_METADATA_KEY) as Record<string, string>;
 
-        for (const [key, value] of paramsMetadata) {
-            if (!params[value]) {
-                throw new Error(`No binding for the parameter: ${value}`)
-            }
-
-            args[key] = params[value]
-        }
-    }
-    private async validateBody(instance: Ctx, pipe: Pipe, methodName: string) {
-        const bodyMetadata: { pipe?: Pipe, paramIndex: number } = Reflect.getOwnMetadata(BODY_METADATA_KEY , Object.getPrototypeOf(instance), methodName)
+    private async validateParam(instance: Ctx, methodName: string, propertyMetadataValue: PropertyMetadataValue) {
+        const { pipe, index, type } = propertyMetadataValue;
         const paramTypes = Reflect.getOwnMetadata('design:paramtypes', Object.getPrototypeOf(instance), methodName);
-        const body = this.injectsMap.get(BODY_METADATA_KEY);
-        const bodyType = paramTypes[bodyMetadata.paramIndex];
+        const param = this.injectsMap.get(type);
+        const paramType = paramTypes[index];
         if (pipe instanceof ValidationPipe) {
-            const { errors, success, data } = await pipe.validate(body, bodyType)
+            const { errors, success, data } = await pipe.validate(param, paramType)
 
             if (success) {
                 return data;

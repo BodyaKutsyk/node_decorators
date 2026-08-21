@@ -1,28 +1,88 @@
-export const BODY_METADATA_KEY = Symbol('body');
-export const PARAMS_METADATA_KEY = Symbol('param');
-export const QUERY_METADATA_KEY = Symbol('query');
+import {Pipe} from "src/types";
 
-interface BodyMetadataValue {
-    pipe?: Function
+export const PARAM_METADATA_KEY = Symbol.for('param');
+
+export const PROPERTY_METADATA_TYPE =  {
+    body: Symbol('body'),
+    param: Symbol('param'),
+    query: Symbol('query')
+} as const;
+
+
+
+export interface PropertyMetadataValue {
+    type: symbol,
+    index: number;
+    data?: string;
+    // TODO: support multiple pipes
+    pipe?: Pipe
 }
 
-export function Body<T>(pipe?: T) {
+export type PropertyMetadataValues = Map<number, PropertyMetadataValue>
+
+function generatePropertyMetadata(type: symbol, index: number, dataOrPipe?: string | Pipe, pipe?: Pipe): PropertyMetadataValue {
+    const propertyMetadata: PropertyMetadataValue = {
+        type,
+        index
+    };
+
+    if (dataOrPipe) {
+        if (dataOrPipe instanceof Pipe) {
+            propertyMetadata.pipe = dataOrPipe;
+        } else {
+            propertyMetadata.data = dataOrPipe
+
+            if (pipe) {
+                propertyMetadata.pipe = pipe;
+            }
+        }
+    }
+
+    return propertyMetadata;
+}
+
+function expandPropertiesMetadata(target: any, propertyKey: string, index: number, metadataValue: PropertyMetadataValue): PropertyMetadataValues {
+    const existingPropertyMetadataValue: PropertyMetadataValues = Reflect.getOwnMetadata(PARAM_METADATA_KEY, target, propertyKey) || new Map();
+    existingPropertyMetadataValue.set(index, metadataValue)
+    return existingPropertyMetadataValue;
+}
+
+interface DefinitionMetadataProps {
+    propertyMetadataType: symbol;
+    target: any;
+    propertyKey: string;
+    paramIndex: number;
+    dataOrPipe?: string | Pipe;
+    pipe?: | Pipe;
+}
+
+function setParamMetadata({ propertyMetadataType, paramIndex, target, propertyKey, dataOrPipe, pipe }: DefinitionMetadataProps) {
+    const propertyMetadataValue = generatePropertyMetadata(propertyMetadataType, paramIndex, dataOrPipe, pipe);
+    const existingPropertyMetadataValue = expandPropertiesMetadata(target, propertyKey, paramIndex, propertyMetadataValue);
+
+    Reflect.defineMetadata(PARAM_METADATA_KEY, existingPropertyMetadataValue, target, propertyKey);
+}
+
+export function Body(pipe?: Pipe): Function;
+export function Body(data?: string): Function;
+export function Body(dataOrPipe?: string | Pipe, pipe?: Pipe): Function {
     return function (target: any, propertyKey: string, paramIndex: number) {
-        Reflect.defineMetadata(BODY_METADATA_KEY, { paramIndex, pipe } , target, propertyKey);
+        setParamMetadata({ target, propertyKey, paramIndex, dataOrPipe, pipe, propertyMetadataType: PROPERTY_METADATA_TYPE.body })
     }
 }
 
-export function Param(name: string) {
+export function Param(pipe?: Pipe): Function;
+export function Param(data?: string): Function;
+export function Param(dataOrPipe?: string | Pipe, pipe?: Pipe): Function {
     return function (target: any, propertyKey: string, paramIndex: number) {
-        const params = Reflect.getOwnMetadata(PARAMS_METADATA_KEY, target, propertyKey) || new Map();
-        params.set(paramIndex, name)
-
-        Reflect.defineMetadata(PARAMS_METADATA_KEY, params, target, propertyKey);
+        setParamMetadata({ target, propertyKey, paramIndex, dataOrPipe, pipe, propertyMetadataType: PROPERTY_METADATA_TYPE.param })
     }
 }
 
-export function Query(query: string) {
+export function Query(pipe?: Pipe): Function;
+export function Query(data?: string): Function;
+export function Query(dataOrPipe?: string | Pipe, pipe?: Pipe ) {
     return function (target: any, propertyKey: string, paramIndex: number) {
-        Reflect.defineMetadata(PARAMS_METADATA_KEY, [paramIndex, query], target, propertyKey);
+        setParamMetadata({ target, propertyKey, paramIndex, dataOrPipe, pipe, propertyMetadataType: PROPERTY_METADATA_TYPE.query })
     }
 }

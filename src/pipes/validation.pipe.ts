@@ -8,7 +8,7 @@ interface ValidateResponse<T> {
     success: boolean;
 }
 
-export class ValidationPipe implements Pipe {
+export class ValidationPipe extends Pipe {
     async validate<T>(body: unknown, type: ClassConstructor<T>): Promise<ValidateResponse<T>> {
         const instance = plainToInstance(type, body);
         const errors = await validate(instance as object);
